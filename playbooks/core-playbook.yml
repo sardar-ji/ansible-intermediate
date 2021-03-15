@@ -1,0 +1,34 @@
+---
+- hosts: dev_servers
+  gather_facts: false
+  serial:
+    - 1
+  pre_tasks:
+  - name: Get package facts
+    package_facts:
+      manager: auto
+      
+  - name: Check repo-elasticsearch
+    yum:
+      list: elasticsearch
+      enablerepo: "elasticsearch"
+      disablerepo: "*"
+    register: yum  
+   
+  - name: Check kibana repo
+    yum:
+      list: kibana
+      enablerepo: "elasticsearch"
+      disablerepo: "*"
+    register: yum_kib
+    when: inventory_hostname in groups['elasticsearch_controller']
+    
+  post_tasks:
+  - name: check healthcheck
+    uri:
+      url: http://localhost:9200/_cluster/health
+      return_content: true
+    register: es_health
+    until: es_health.json.status = 'green'. and es_health.json.active_shrads_percent_as_number - 100
+    retries: 40
+    delay: 10
